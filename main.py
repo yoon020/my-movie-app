@@ -35,13 +35,6 @@ st.markdown("""
         font-weight: 800;
         margin-bottom: 4px;
     }
-    .opinion-badge {
-        display: inline-block;
-        padding: 4px 12px;
-        border-radius: 20px;
-        font-weight: bold;
-        font-size: 14px;
-    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -76,7 +69,7 @@ def fetch_boxoffice(date_str):
         res.raise_for_status()
         data = res.json()
         return data.get("boxOfficeResult", {}).get("dailyBoxOfficeList", [])
-    except Exception as e:
+    except Exception:
         return []
 
 raw_data = fetch_boxoffice(target_dt)
@@ -164,7 +157,7 @@ with col_left:
     # 가상 주가 캔들스틱(봉차트) 생성기
     st.markdown("##### 🕯️ 최근 7일간의 가상 주가 봉차트 (Candlestick)")
     
-    # 7일간의 가상 주가 동향 생성 (KOBIS 단일 API의 한계를 극복하기 위해 가상 주가 흐름 복원)
+    # 7일간의 가상 주가 동향 생성
     dates = [(selected_date - timedelta(days=i)).strftime("%m/%d") for i in range(6, -1, -1)]
     base_price = movie_info["주가(원)"]
     
@@ -174,7 +167,8 @@ with col_left:
     prices[-1] = base_price  # 마지막 날은 현재 데이터
     
     opens = [p * np.random.uniform(0.96, 1.02) for p in prices]
-    highs = [max(p, o) * np.random.uniform(1.01, 1.05) for p p, o in zip(prices, opens)]
+    # (수정 완료) 문법 오류 수정 부분
+    highs = [max(p, o) * np.random.uniform(1.01, 1.05) for p, o in zip(prices, opens)]
     lows = [min(p, o) * np.random.uniform(0.95, 0.99) for p, o in zip(prices, opens)]
     
     fig = go.Figure(data=[go.Candlestick(
