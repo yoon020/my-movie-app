@@ -17,6 +17,7 @@ st.set_page_config(
 
 st.markdown("""
 <style>
+    /* 바탕화면 및 전체 밝은 테마 커스텀 */
     .stApp {
         background-color: #ffffff;
         color: #1f2328;
@@ -36,6 +37,7 @@ st.markdown("""
         margin-bottom: 4px;
         color: #1f2328;
     }
+    /* 툴팁 마우스 호버 스타일 정의 */
     .tooltip-container {
         position: relative;
         display: inline-block;
@@ -65,13 +67,6 @@ st.markdown("""
         visibility: visible;
         opacity: 1;
     }
-    .predict-box {
-        background: #f1f8ff;
-        border: 1px solid #0969da;
-        border-radius: 8px;
-        padding: 12px 16px;
-        margin-top: 10px;
-    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -82,25 +77,22 @@ if "KOBIS_KEY" not in st.secrets:
 
 KOBIS_KEY = st.secrets["KOBIS_KEY"]
 
-# 🤖 [AI 머신러닝 모델 구축] 역대 흥행 데이터 학습기
+# AI 머신러닝 흥행 예측 모델 학습
 @st.cache_resource
 def train_movie_predictor():
-    # 학습용 가상 히스토리 데이터셋 (역대 흥행작 패턴)
     train_data = pd.DataFrame([
-        {"day1_audi": 330000, "scrn_cnt": 1980, "audi_change": 240.5, "final_audi": 11913000}, # 파묘 패턴
-        {"day1_audi": 200000, "scrn_cnt": 1820, "audi_change": 265.0, "final_audi": 13128080}, # 서울의봄 패턴
-        {"day1_audi": 820000, "scrn_cnt": 2850, "audi_change": 180.2, "final_audi": 11500000}, # 범죄도시4 패턴
-        {"day1_audi": 130000, "scrn_cnt": 1650, "audi_change": 380.1, "final_audi": 8790000},  # 인사이드아웃2 패턴
-        {"day1_audi": 90000,  "scrn_cnt": 1220, "audi_change": 150.3, "final_audi": 1417000},  # 중소흥행작 패턴
-        {"day1_audi": 50000,  "scrn_cnt": 800,  "audi_change": 80.0,  "final_audi": 800000},   # 소규모 영화 패턴
-        {"day1_audi": 15000,  "scrn_cnt": 300,  "audi_change": -10.0, "final_audi": 150000},   # 다양성 영화 패턴
+        {"day1_audi": 330000, "scrn_cnt": 1980, "audi_change": 240.5, "final_audi": 11913000},
+        {"day1_audi": 200000, "scrn_cnt": 1820, "audi_change": 265.0, "final_audi": 13128080},
+        {"day1_audi": 820000, "scrn_cnt": 2850, "audi_change": 180.2, "final_audi": 11500000},
+        {"day1_audi": 130000, "scrn_cnt": 1650, "audi_change": 380.1, "final_audi": 8790000},
+        {"day1_audi": 90000,  "scrn_cnt": 1220, "audi_change": 150.3, "final_audi": 1417000},
+        {"day1_audi": 50000,  "scrn_cnt": 800,  "audi_change": 80.0,  "final_audi": 800000},
+        {"day1_audi": 15000,  "scrn_cnt": 300,  "audi_change": -10.0, "final_audi": 150000},
     ])
     
-    # 피처(X)와 타겟(Y) 분리
     X = train_data[["day1_audi", "scrn_cnt", "audi_change"]]
     y = train_data["final_audi"]
     
-    # 랜덤 포레스트 머신러닝 모델 학습
     model = RandomForestRegressor(n_estimators=50, random_state=42)
     model.fit(X, y)
     return model
@@ -147,7 +139,7 @@ for col in ["rank", "audiCnt", "audiAcc", "scrnCnt", "showCnt", "audiChange"]:
     if col in df.columns:
         df[col] = pd.to_numeric(df[col])
 
-# 가상의 주가 생성 (관객수와 스크린 효율을 조합하여 '1주당 가치(원)' 계산)
+# 가상의 주가 생성
 df["주가(원)"] = (df["audiCnt"] * 10 + (df["audiCnt"] / df["scrnCnt"].replace(0, 1)) * 1000).round(-1).astype(int)
 df["전일대비_원"] = (df["주가(원)"] * (df["audiChange"] / 100)).round(-1).astype(int)
 
@@ -219,7 +211,7 @@ with col_left:
         op_color = "#1160b7"
         reason = "관객수가 급감하고 있으며 조기 하강 국면에 접어들었습니다."
 
-    # 🔮 1번 머신러닝 모델 예측 실행
+    # ML 모델 예측 실행
     input_features = pd.DataFrame([{
         "day1_audi": movie_info["audiCnt"],
         "scrn_cnt": movie_info["scrnCnt"],
@@ -228,22 +220,31 @@ with col_left:
     
     predicted_final_audi = int(predictor_model.predict(input_features)[0])
 
-    # 선택 종목 헤더
+    # 선택 종목 헤더 & AI 흥행 예측 리포트
     st.markdown(f"""
-    <div style="background:#f6f8fa; padding:16px; border-radius:8px; border-left: 5px solid {op_color}; margin-bottom:15px; border-top:1px solid #d0d7de; border-right:1px solid #d0d7de; border-bottom:1px solid #d0d7de;">
-        <span class="ticker-header">{movie_info['movieNm']}</span>
-        <span style="background:{op_color}; color:white; padding:3px 10px; border-radius:12px; font-size:12px; font-weight:bold; margin-left:10px;">{opinion}</span>
-        <div style="color:#57606a; margin-top:8px; font-size:14px;">💡 <b>애널리스트 리포트:</b> {reason}</div>
+    <div style="background:#f6f8fa; padding:18px; border-radius:8px; border-left: 5px solid {op_color}; margin-bottom:15px; border:1px solid #d0d7de; border-left-width:5px;">
+        <div style="display:flex; align-items:center; justify-content:space-between;">
+            <div>
+                <span class="ticker-header">{movie_info['movieNm']}</span>
+                <span style="background:{op_color}; color:white; padding:3px 10px; border-radius:12px; font-size:12px; font-weight:bold; margin-left:8px;">{opinion}</span>
+            </div>
+        </div>
         
-        <!-- 🎯 1번 머신러닝 예측 결과 박스 -->
-        <div class="predict-box">
-            <b>🤖 ML 흥행 예측 알고리즘 결과:</b><br>
-            현재 추세 유지 시 예상 최종 관객수는 약 <span style="color:#0969da; font-weight:bold; font-size:16px;">{predicted_final_audi:,} 명</span>으로 예상됩니다.
+        <div style="color:#57606a; margin-top:8px; font-size:14px; line-height:1.5;">
+            💡 <b>애널리스트 평가:</b> {reason}
+        </div>
+        
+        <div style="background:#f1f8ff; border:1px solid #0969da; border-radius:8px; padding:12px 16px; margin-top:12px;">
+            <div style="font-size:13px; color:#0969da; font-weight:bold; margin-bottom:2px;">🤖 ML 흥행 예측 알고리즘 결과</div>
+            <div style="font-size:15px; color:#1f2328;">
+                현재 추세 유지 시 예상 최종 관객수는 
+                <span style="color:#0969da; font-weight:800; font-size:17px;">약 {predicted_final_audi:,} 명</span>으로 예상됩니다.
+            </div>
         </div>
     </div>
     """, unsafe_allow_html=True)
 
-    # 가상 주가 캔들스틱(봉차트) 생성기
+    # 가상 주가 캔들스틱(봉차트)
     st.markdown("##### 🕯️ 최근 7일간의 가상 주가 봉차트 (Candlestick)")
     
     dates = [(selected_date - timedelta(days=i)).strftime("%m/%d") for i in range(6, -1, -1)]
@@ -294,7 +295,7 @@ with col_right:
     
     st.divider()
     
-    # 6. 주식 종목 토론방 (커뮤니티 인터랙션)
+    # 6. 주식 종목 토론방
     st.subheader(f"💬 [{selected_movie}] 종목 토론방")
     
     if "comments" not in st.session_state:
