@@ -17,7 +17,6 @@ st.set_page_config(
 
 st.markdown("""
 <style>
-    /* 바탕화면 및 전체 밝은 테마 커스텀 */
     .stApp {
         background-color: #ffffff;
         color: #1f2328;
@@ -37,7 +36,6 @@ st.markdown("""
         margin-bottom: 4px;
         color: #1f2328;
     }
-    /* 툴팁 마우스 호버 스타일 정의 */
     .tooltip-container {
         position: relative;
         display: inline-block;
@@ -66,6 +64,18 @@ st.markdown("""
     .tooltip-container:hover .tooltip-text {
         visibility: visible;
         opacity: 1;
+    }
+    .feature-card {
+        background: #f8f9fa;
+        border: 1px solid #d0d7de;
+        border-radius: 8px;
+        padding: 16px;
+        margin-top: 12px;
+    }
+    .feature-title {
+        font-weight: bold;
+        color: #0969da;
+        font-size: 14px;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -220,28 +230,34 @@ with col_left:
     
     predicted_final_audi = int(predictor_model.predict(input_features)[0])
 
-    # 선택 종목 헤더 & AI 흥행 예측 리포트
+    # 선택 종목 요약
     st.markdown(f"""
     <div style="background:#f6f8fa; padding:18px; border-radius:8px; border-left: 5px solid {op_color}; margin-bottom:15px; border:1px solid #d0d7de; border-left-width:5px;">
-        <div style="display:flex; align-items:center; justify-content:space-between;">
-            <div>
-                <span class="ticker-header">{movie_info['movieNm']}</span>
-                <span style="background:{op_color}; color:white; padding:3px 10px; border-radius:12px; font-size:12px; font-weight:bold; margin-left:8px;">{opinion}</span>
-            </div>
-        </div>
-        
-        <div style="color:#57606a; margin-top:8px; font-size:14px; line-height:1.5;">
-            💡 <b>애널리스트 평가:</b> {reason}
-        </div>
-        
+        <span class="ticker-header">{movie_info['movieNm']}</span>
+        <span style="background:{op_color}; color:white; padding:3px 10px; border-radius:12px; font-size:12px; font-weight:bold; margin-left:8px;">{opinion}</span>
+        <div style="color:#57606a; margin-top:8px; font-size:14px; line-height:1.5;">💡 <b>애널리스트 평가:</b> {reason}</div>
         <div style="background:#f1f8ff; border:1px solid #0969da; border-radius:8px; padding:12px 16px; margin-top:12px;">
             <div style="font-size:13px; color:#0969da; font-weight:bold; margin-bottom:2px;">🤖 ML 흥행 예측 알고리즘 결과</div>
             <div style="font-size:15px; color:#1f2328;">
-                현재 추세 유지 시 예상 최종 관객수는 
-                <span style="color:#0969da; font-weight:800; font-size:17px;">약 {predicted_final_audi:,} 명</span>으로 예상됩니다.
+                현재 추세 유지 시 예상 최종 관객수는 <span style="color:#0969da; font-weight:800; font-size:17px;">약 {predicted_final_audi:,} 명</span>으로 예측됩니다.
             </div>
         </div>
     </div>
+    """, unsafe_allow_html=True)
+
+    # 💡 [요청하신 머신러닝 피처 설명 카드]
+    st.markdown("""
+    <div class="feature-card">
+        <h4 style="margin-top:0; margin-bottom:12px; color:#1f2328;">💡 머신러닝에 활용되는 주요 피처(Feature) 설명</h4>
+        <ul style="margin:0; padding-left:20px; font-size:13px; color:#424a53; line-height:1.7;">
+            <li><b class="feature-title">개봉첫날관객 (Day1_Audi):</b> 초반 팬덤 및 사전 예매율에 따른 화력 지표</li>
+            <li><b class="feature-title">첫주말관객 (W1_Weekend):</b> 개봉 첫 금~일 3일간 동원한 관객 수</li>
+            <li><b class="feature-title">주말증가율 (Weekend_Jump):</b> (주말 평균 관객수 / 평일 평균 관객수) * 100 <br>&nbsp;&nbsp;└ <i>입소문이 좋은 영화일수록 주말 점프율이 높게 나타납니다.</i></li>
+            <li><b class="feature-title">스크린효율 (Audi_per_Scrn):</b> 7일 누적 관객수 / 7일 평균 스크린수 <br>&nbsp;&nbsp;└ <i>스크린 수가 적더라도 스크린 1개당 관객수가 많으면(좌석 점유율이 높으면) 입소문 떡상 후보가 됩니다.</i></li>
+            <li><b style="color:#d9381e;">[Target] 최종누적관객 (Final_Acc_Audi):</b> 모델이 최종 예측해야 하는 정답 데이터</li>
+        </ul>
+    </div>
+    <div style="margin-bottom:15px;"></div>
     """, unsafe_allow_html=True)
 
     # 가상 주가 캔들스틱(봉차트)
