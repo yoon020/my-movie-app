@@ -5,6 +5,7 @@ import requests
 import streamlit as st
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
+from sklearn.ensemble import RandomForestRegressor
 
 # 1. 페이지 설정 및 밝은(Light) 테마 CSS 커스텀
 st.set_page_config(
@@ -16,7 +17,6 @@ st.set_page_config(
 
 st.markdown("""
 <style>
-    /* 바탕화면 및 전체 밝은 테마 커스텀 */
     .stApp {
         background-color: #ffffff;
         color: #1f2328;
@@ -28,15 +28,14 @@ st.markdown("""
         padding: 16px;
         margin-bottom: 12px;
     }
-    .up-color { color: #d9381e !important; font-weight: bold; } /* 한국 주식 빨간색=상승 */
-    .down-color { color: #1160b7 !important; font-weight: bold; } /* 한국 주식 파란색=하락 */
+    .up-color { color: #d9381e !important; font-weight: bold; }
+    .down-color { color: #1160b7 !important; font-weight: bold; }
     .ticker-header {
         font-size: 24px;
         font-weight: 800;
         margin-bottom: 4px;
         color: #1f2328;
     }
-    /* 툴팁 마우스 호버 스타일 정의 */
     .tooltip-container {
         position: relative;
         display: inline-block;
@@ -66,6 +65,13 @@ st.markdown("""
         visibility: visible;
         opacity: 1;
     }
+    .predict-box {
+        background: #f1f8ff;
+        border: 1px solid #0969da;
+        border-radius: 8px;
+        padding: 12px 16px;
+        margin-top: 10px;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -76,10 +82,35 @@ if "KOBIS_KEY" not in st.secrets:
 
 KOBIS_KEY = st.secrets["KOBIS_KEY"]
 
+# 🤖 [AI 머신러닝 모델 구축] 역대 흥행 데이터 학습기
+@st.cache_resource
+def train_movie_predictor():
+    # 학습용 가상 히스토리 데이터셋 (역대 흥행작 패턴)
+    train_data = pd.DataFrame([
+        {"day1_audi": 330000, "scrn_cnt": 1980, "audi_change": 240.5, "final_audi": 11913000}, # 파묘 패턴
+        {"day1_audi": 200000, "scrn_cnt": 1820, "audi_change": 265.0, "final_audi": 13128080}, # 서울의봄 패턴
+        {"day1_audi": 820000, "scrn_cnt": 2850, "audi_change": 180.2, "final_audi": 11500000}, # 범죄도시4 패턴
+        {"day1_audi": 130000, "scrn_cnt": 1650, "audi_change": 380.1, "final_audi": 8790000},  # 인사이드아웃2 패턴
+        {"day1_audi": 90000,  "scrn_cnt": 1220, "audi_change": 150.3, "final_audi": 1417000},  # 중소흥행작 패턴
+        {"day1_audi": 50000,  "scrn_cnt": 800,  "audi_change": 80.0,  "final_audi": 800000},   # 소규모 영화 패턴
+        {"day1_audi": 15000,  "scrn_cnt": 300,  "audi_change": -10.0, "final_audi": 150000},   # 다양성 영화 패턴
+    ])
+    
+    # 피처(X)와 타겟(Y) 분리
+    X = train_data[["day1_audi", "scrn_cnt", "audi_change"]]
+    y = train_data["final_audi"]
+    
+    # 랜덤 포레스트 머신러닝 모델 학습
+    model = RandomForestRegressor(n_estimators=50, random_state=42)
+    model.fit(X, y)
+    return model
+
+predictor_model = train_movie_predictor()
+
 # 2. 사이드바 - 날짜 선택 및 검색
 st.sidebar.image("https://img.icons8.com/color/96/bullish.png", width=60)
 st.sidebar.title("MOVIE X 거래소")
-st.sidebar.caption("K-BOX 실시간 영화 시세 & 분석 시스템")
+st.sidebar.caption("K-BOX 실시간 영화 시세 & AI 예측 시스템")
 
 yesterday = (datetime.now(ZoneInfo("Asia/Seoul")) - timedelta(days=1)).date()
 
@@ -145,10 +176,9 @@ st.divider()
 col_left, col_right = st.columns([7, 5])
 
 with col_left:
-    # 💡 제목에 마우스를 올리면 판단 기준을 보여주는 툴팁 적용
     st.markdown("""
     <div class="tooltip-container">
-        <h3 style="display:inline; margin:0;">📊 종목 선택 및 차트 분석 <span style="font-size:16px; color:#0969da;">ℹ️</span></h3>
+        <h3 style="display:inline; margin:0;">📊 종목 선택 및 AI 예측 분석 <span style="font-size:16px; color:#0969da;">ℹ️</span></h3>
         <div class="tooltip-text">
             <b>📖 AI 매수 / 매도 판단 알고리즘 기준</b><hr style="margin:6px 0; border:0; border-top:1px solid #d0d7de;">
             • <b style="color:#d9381e;">🔥 강력 매수:</b> 관객수 증가율 <b>+15% 이상</b> & 스크린당 관객 <b>100명 초과</b><br>
@@ -189,26 +219,39 @@ with col_left:
         op_color = "#1160b7"
         reason = "관객수가 급감하고 있으며 조기 하강 국면에 접어들었습니다."
 
+    # 🔮 1번 머신러닝 모델 예측 실행
+    input_features = pd.DataFrame([{
+        "day1_audi": movie_info["audiCnt"],
+        "scrn_cnt": movie_info["scrnCnt"],
+        "audi_change": movie_info["audiChange"]
+    }])
+    
+    predicted_final_audi = int(predictor_model.predict(input_features)[0])
+
     # 선택 종목 헤더
     st.markdown(f"""
     <div style="background:#f6f8fa; padding:16px; border-radius:8px; border-left: 5px solid {op_color}; margin-bottom:15px; border-top:1px solid #d0d7de; border-right:1px solid #d0d7de; border-bottom:1px solid #d0d7de;">
         <span class="ticker-header">{movie_info['movieNm']}</span>
         <span style="background:{op_color}; color:white; padding:3px 10px; border-radius:12px; font-size:12px; font-weight:bold; margin-left:10px;">{opinion}</span>
         <div style="color:#57606a; margin-top:8px; font-size:14px;">💡 <b>애널리스트 리포트:</b> {reason}</div>
+        
+        <!-- 🎯 1번 머신러닝 예측 결과 박스 -->
+        <div class="predict-box">
+            <b>🤖 ML 흥행 예측 알고리즘 결과:</b><br>
+            현재 추세 유지 시 예상 최종 관객수는 약 <span style="color:#0969da; font-weight:bold; font-size:16px;">{predicted_final_audi:,} 명</span>으로 예상됩니다.
+        </div>
     </div>
     """, unsafe_allow_html=True)
 
     # 가상 주가 캔들스틱(봉차트) 생성기
     st.markdown("##### 🕯️ 최근 7일간의 가상 주가 봉차트 (Candlestick)")
     
-    # 7일간의 가상 주가 동향 생성
     dates = [(selected_date - timedelta(days=i)).strftime("%m/%d") for i in range(6, -1, -1)]
     base_price = movie_info["주가(원)"]
     
-    # 변동성 주가 패턴 연산
     np.random.seed(hash(selected_movie) % 1000)
     prices = [max(1000, int(base_price * (1 + (i - 3) * 0.08 + np.random.uniform(-0.05, 0.05)))) for i in range(7)]
-    prices[-1] = base_price  # 마지막 날은 현재 데이터
+    prices[-1] = base_price
     
     opens = [p * np.random.uniform(0.96, 1.02) for p in prices]
     highs = [max(p, o) * np.random.uniform(1.01, 1.05) for p, o in zip(prices, opens)]
@@ -233,7 +276,6 @@ with col_left:
 with col_right:
     st.subheader("🏛️ K-BOX 시세 리스트")
     
-    # 시세표 데이터프레임
     display_df = df[["rank", "movieNm", "주가(원)", "audiChange", "audiAcc"]].copy()
     display_df.columns = ["순위", "종목명", "주가", "등락률(%)", "누적관객"]
     
@@ -255,7 +297,6 @@ with col_right:
     # 6. 주식 종목 토론방 (커뮤니티 인터랙션)
     st.subheader(f"💬 [{selected_movie}] 종목 토론방")
     
-    # 세션 상태로 댓글 저장
     if "comments" not in st.session_state:
         st.session_state.comments = {
             selected_movie: [
@@ -269,7 +310,6 @@ with col_right:
             {"user": "익명 개미", "text": f"{selected_movie} 종목 가즈아!", "type": "🔴 매수"}
         ]
         
-    # 댓글 입력
     with st.form(key="comment_form", clear_on_submit=True):
         c_col1, c_col2 = st.columns([3, 1])
         with c_col1:
@@ -287,7 +327,6 @@ with col_right:
             })
             st.rerun()
 
-    # 댓글 리스트 출력
     for comment in st.session_state.comments[selected_movie][:5]:
         badge_color = "#d9381e" if "매수" in comment["type"] else "#1160b7"
         st.markdown(f"""
