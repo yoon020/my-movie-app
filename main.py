@@ -1,4 +1,5 @@
 import pandas as pd
+import plotly.express as px
 import requests
 import streamlit as st
 from datetime import datetime, timedelta
@@ -109,7 +110,29 @@ st.dataframe(
     }
 )
 
-# 7. 관객수 상위 5편 바 차트
+# 7. 관객수 상위 5편 바 차트 (영화 제목이 가로로 나오도록 Plotly 차트 적용)
 st.subheader("📈 관객수 상위 5편")
 top5 = table.sort_values("관객수", ascending=False).head(5)
-st.bar_chart(top5.set_index("영화명")["관객수"])
+
+fig = px.bar(
+    top5,
+    x="영화명",
+    y="관객수",
+    text="관객수",
+    color_discrete_sequence=["#2b5c8f"]
+)
+
+# 차트 디테일 설정 (X축 텍스트 각도 0도 고정 = 가로 쓰기)
+fig.update_traces(
+    texttemplate="%{text:,}명", 
+    textposition="outside"
+)
+fig.update_layout(
+    xaxis_title="",
+    yaxis_title="관객수(명)",
+    xaxis=dict(tickangle=0),  # 영화 제목을 완벽히 가로(0도)로 고정
+    margin=dict(t=20, b=20, l=20, r=20),
+    height=400
+)
+
+st.plotly_chart(fig, use_container_width=True)
