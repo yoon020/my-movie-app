@@ -6,7 +6,7 @@ import streamlit as st
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
-# 1. 페이지 설정 및 주식 거래소 전용 CSS 커스텀
+# 1. 페이지 설정 및 밝은(Light) 테마 CSS 커스텀
 st.set_page_config(
     page_title="MOVIE X - 영화 주식 거래소",
     page_icon="📈",
@@ -16,24 +16,55 @@ st.set_page_config(
 
 st.markdown("""
 <style>
-    /* 거래소 다크 스타일 커스텀 */
+    /* 바탕화면 및 전체 밝은 테마 커스텀 */
     .stApp {
-        background-color: #0d1117;
-        color: #e6edf3;
+        background-color: #ffffff;
+        color: #1f2328;
     }
     .stock-card {
-        background: #161b22;
-        border: 1px solid #30363d;
+        background: #f6f8fa;
+        border: 1px solid #d0d7de;
         border-radius: 8px;
         padding: 16px;
         margin-bottom: 12px;
     }
-    .up-color { color: #ff4d4f !important; font-weight: bold; } /* 한국 주식 빨간색=상승 */
-    .down-color { color: #1890ff !important; font-weight: bold; } /* 한국 주식 파란색=하락 */
+    .up-color { color: #d9381e !important; font-weight: bold; } /* 한국 주식 빨간색=상승 */
+    .down-color { color: #1160b7 !important; font-weight: bold; } /* 한국 주식 파란색=하락 */
     .ticker-header {
         font-size: 24px;
         font-weight: 800;
         margin-bottom: 4px;
+        color: #1f2328;
+    }
+    /* 툴팁 마우스 호버 스타일 정의 */
+    .tooltip-container {
+        position: relative;
+        display: inline-block;
+        cursor: pointer;
+    }
+    .tooltip-container .tooltip-text {
+        visibility: hidden;
+        width: 380px;
+        background-color: #ffffff;
+        color: #1f2328;
+        text-align: left;
+        border-radius: 8px;
+        padding: 12px 16px;
+        position: absolute;
+        z-index: 999;
+        top: 120%;
+        left: 0;
+        box-shadow: 0px 4px 16px rgba(0,0,0,0.15);
+        border: 1px solid #d0d7de;
+        font-size: 13px;
+        font-weight: normal;
+        line-height: 1.6;
+        opacity: 0;
+        transition: opacity 0.2s ease-in-out;
+    }
+    .tooltip-container:hover .tooltip-text {
+        visibility: visible;
+        opacity: 1;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -101,9 +132,9 @@ for idx, row in df.head(5).iterrows():
     with ticker_cols[idx]:
         st.markdown(f"""
         <div class="stock-card">
-            <div style="font-size:12px; color:#8b949e;">No.{row['rank']} 종목</div>
-            <div style="font-weight:bold; font-size:15px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{row['movieNm']}</div>
-            <div style="font-size:18px; font-weight:800; margin-top:4px;">{row['주가(원)']:,} 원</div>
+            <div style="font-size:12px; color:#57606a;">No.{row['rank']} 종목</div>
+            <div style="font-weight:bold; font-size:15px; color:#1f2328; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{row['movieNm']}</div>
+            <div style="font-size:18px; font-weight:800; color:#1f2328; margin-top:4px;">{row['주가(원)']:,} 원</div>
             <div class="{color_class}" style="font-size:13px;">{sign} {abs(change_val):.1f}%</div>
         </div>
         """, unsafe_allow_html=True)
@@ -114,7 +145,20 @@ st.divider()
 col_left, col_right = st.columns([7, 5])
 
 with col_left:
-    st.subheader("📊 종목 선택 및 차트 분석")
+    # 💡 제목에 마우스를 올리면 판단 기준을 보여주는 툴팁 적용
+    st.markdown("""
+    <div class="tooltip-container">
+        <h3 style="display:inline; margin:0;">📊 종목 선택 및 차트 분석 <span style="font-size:16px; color:#0969da;">ℹ️</span></h3>
+        <div class="tooltip-text">
+            <b>📖 AI 매수 / 매도 판단 알고리즘 기준</b><hr style="margin:6px 0; border:0; border-top:1px solid #d0d7de;">
+            • <b style="color:#d9381e;">🔥 강력 매수:</b> 관객수 증가율 <b>+15% 이상</b> & 스크린당 관객 <b>100명 초과</b><br>
+            • <b style="color:#e67e22;">📈 매수:</b> 전일 대비 관객수 증감률 <b>0% 이상 (우상향)</b><br>
+            • <b style="color:#f39c12;">⚖️ 중립/관망:</b> 전일 대비 관객수 감소율 <b>-20% 이내</b><br>
+            • <b style="color:#1160b7;">🚨 매도/손절:</b> 전일 대비 관객수 <b>-20% 초과 급감</b>
+        </div>
+    </div>
+    <div style="margin-bottom: 15px;"></div>
+    """, unsafe_allow_html=True)
     
     selected_movie = st.selectbox(
         "분석할 영화 종목을 선택하세요",
@@ -130,27 +174,27 @@ with col_left:
     
     if change > 15 and scrn_efficiency > 100:
         opinion = "🔥 강력 매수 (Strong Buy)"
-        op_color = "#ff4d4f"
+        op_color = "#d9381e"
         reason = "관객증가율이 폭발적이며 스크린 대비 효율이 높아 입소문 떡상이 확정적입니다."
     elif change >= 0:
         opinion = "📈 매수 (Buy)"
-        op_color = "#f50"
+        op_color = "#e67e22"
         reason = "우상향 흐름을 유지 중이며 무난하게 관객수를 확보하고 있습니다."
     elif change > -20:
         opinion = "⚖️ 중립 / 관망 (Hold)"
-        op_color = "#faad14"
+        op_color = "#f39c12"
         reason = "흥행세가 주춤하는 구간입니다. 주말 관객 수치를 보고 판단하세요."
     else:
         opinion = "🚨 매도 / 손절 (Sell)"
-        op_color = "#1890ff"
+        op_color = "#1160b7"
         reason = "관객수가 급감하고 있으며 조기 하강 국면에 접어들었습니다."
 
     # 선택 종목 헤더
     st.markdown(f"""
-    <div style="background:#161b22; padding:16px; border-radius:8px; border-left: 5px solid {op_color}; margin-bottom:15px;">
+    <div style="background:#f6f8fa; padding:16px; border-radius:8px; border-left: 5px solid {op_color}; margin-bottom:15px; border-top:1px solid #d0d7de; border-right:1px solid #d0d7de; border-bottom:1px solid #d0d7de;">
         <span class="ticker-header">{movie_info['movieNm']}</span>
         <span style="background:{op_color}; color:white; padding:3px 10px; border-radius:12px; font-size:12px; font-weight:bold; margin-left:10px;">{opinion}</span>
-        <div style="color:#8b949e; margin-top:8px; font-size:14px;">💡 <b>애널리스트 리포트:</b> {reason}</div>
+        <div style="color:#57606a; margin-top:8px; font-size:14px;">💡 <b>애널리스트 리포트:</b> {reason}</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -167,20 +211,19 @@ with col_left:
     prices[-1] = base_price  # 마지막 날은 현재 데이터
     
     opens = [p * np.random.uniform(0.96, 1.02) for p in prices]
-    # (수정 완료) 문법 오류 수정 부분
     highs = [max(p, o) * np.random.uniform(1.01, 1.05) for p, o in zip(prices, opens)]
     lows = [min(p, o) * np.random.uniform(0.95, 0.99) for p, o in zip(prices, opens)]
     
     fig = go.Figure(data=[go.Candlestick(
         x=dates,
         open=opens, high=highs, low=lows, close=prices,
-        increasing_line_color='#ff4d4f', decreasing_line_color='#1890ff'
+        increasing_line_color='#d9381e', decreasing_line_color='#1160b7'
     )])
     
     fig.update_layout(
-        template="plotly_dark",
-        paper_bgcolor="#0d1117",
-        plot_bgcolor="#161b22",
+        template="plotly_white",
+        paper_bgcolor="#ffffff",
+        plot_bgcolor="#f8f9fa",
         margin=dict(l=20, r=20, t=20, b=20),
         height=320,
         xaxis_rangeslider_visible=False
@@ -246,9 +289,9 @@ with col_right:
 
     # 댓글 리스트 출력
     for comment in st.session_state.comments[selected_movie][:5]:
-        badge_color = "#ff4d4f" if "매수" in comment["type"] else "#1890ff"
+        badge_color = "#d9381e" if "매수" in comment["type"] else "#1160b7"
         st.markdown(f"""
-        <div style="background:#161b22; padding:8px 12px; border-radius:6px; margin-bottom:6px; font-size:13px;">
+        <div style="background:#f6f8fa; padding:8px 12px; border-radius:6px; margin-bottom:6px; font-size:13px; border:1px solid #d0d7de;">
             <span style="color:{badge_color}; font-weight:bold;">[{comment['type']}]</span> 
             <b>{comment['user']}</b>: {comment['text']}
         </div>
